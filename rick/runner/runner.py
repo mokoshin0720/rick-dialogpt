@@ -51,9 +51,10 @@ def main(df_trn, df_val):
         args.fp16,
     )
 
-    # Set seed
+    # 謎の乱数を生成
     set_seed(args)
 
+    # 使うモデル等の宣言
     config = AutoConfig.from_pretrained(
         args.config_name, cache_dir=args.cache_dir)
     tokenizer = AutoTokenizer.from_pretrained(
@@ -68,7 +69,7 @@ def main(df_trn, df_val):
 
     logger.info("Training/evaluation parameters %s", args)
 
-    # Training
+    # do_trainは基本True
     if args.do_train:
         train_dataset = load_and_cache_examples(
             args, tokenizer, df_trn, df_val, evaluate=False)

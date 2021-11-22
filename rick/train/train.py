@@ -1,4 +1,4 @@
-from setting.settings import logger
+from setting.settings import logger, Args
 from dataset.dataset import set_seed
 from transformers import PreTrainedModel, PreTrainedTokenizer, AdamW, get_linear_schedule_with_warmup
 from torch.utils.tensorboard import SummaryWriter
@@ -9,7 +9,7 @@ from tqdm.notebook import trange, tqdm
 import torch
 import os
 
-def train(args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer) -> Tuple[int, float]:
+def train(args: Args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer) -> Tuple[int, float]:
     """ Train the model """
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter()

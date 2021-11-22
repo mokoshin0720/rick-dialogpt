@@ -1,4 +1,4 @@
-from setting.settings import logger
+from setting.settings import logger, Args
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
@@ -39,8 +39,6 @@ trn_df, val_df = train_test_split(df, test_size=0.1)
 """データセットをモデルに適応させる
 - 文章を"end of string"で区切る
 """
-
-
 def construct_conv(row, tokenizer, eos=True):
     def flatten(l): return [item for sublist in l for item in sublist]
     conv = list(
@@ -48,50 +46,13 @@ def construct_conv(row, tokenizer, eos=True):
     conv = flatten(conv)
     return conv
 
-
-class ConversationDataset(Dataset):
-    def __init__(self, tokenizer: PreTrainedTokenizer, args, df, block_size=512):
-
-        block_size = block_size - \
-            (tokenizer.model_max_length - tokenizer.max_len_single_sentence)
-
-        directory = args.cache_dir
-        cached_features_file = os.path.join(
-            directory, args.model_type + "_cached_lm_" + str(block_size)
-        )
-
-        if os.path.exists(cached_features_file) and not args.overwrite_cache:
-            logger.info("Loading features from cached file %s",
-                        cached_features_file)
-            with open(cached_features_file, "rb") as handle:
-                self.examples = pickle.load(handle)
-        else:
-            logger.info("Creating features from dataset file at %s", directory)
-
-            self.examples = []
-            for _, row in df.iterrows():
-                conv = construct_conv(row, tokenizer)
-                self.examples.append(conv)
-
-            logger.info("Saving features into cached file %s",
-                        cached_features_file)
-            with open(cached_features_file, "wb") as handle:
-                pickle.dump(self.examples, handle,
-                            protocol=pickle.HIGHEST_PROTOCOL)
-
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, item):
         return torch.tensor(self.examples[item], dtype=torch.long)
 
-# Cacheing and storing of data/checkpoints
-
-
-def load_and_cache_examples(args, tokenizer, df_trn, df_val, evaluate=False):
-    return ConversationDataset(tokenizer, args, df_val if evaluate else df_trn)
-
-
+# 何かわからんけど、乱数を生成している
 def set_seed(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -99,7 +60,7 @@ def set_seed(args):
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-
+"""チェックポイント系"""
 def _sorted_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -> List[str]:
     ordering_and_checkpoint_path = []
 
@@ -120,7 +81,6 @@ def _sorted_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
     checkpoints_sorted = [checkpoint[1] for checkpoint in checkpoints_sorted]
     return checkpoints_sorted
 
-
 def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -> None:
     if not args.save_total_limit:
         return
@@ -140,3 +100,43 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
         logger.info(
             "Deleting older checkpoint [{}] due to args.save_total_limit".format(checkpoint))
         shutil.rmtree(checkpoint)
+
+"""Datasetのクラス系"""
+def load_and_cache_examples(args: Args, tokenizer, df_trn, df_val, evaluate=False):
+    return ConversationDataset(tokenizer, args, df_val if evaluate else df_trn)
+
+class ConversationDataset(Dataset):
+    def __init__(self, tokenizer: PreTrainedTokenizer, args: Args, df, block_size=512):
+
+        block_size = block_size - \
+            (tokenizer.model_max_length - tokenizer.max_len_single_sentence)
+
+        directory = args.cache_dir
+        cached_features_file = os.path.join(
+            directory, args.model_type + "_cached_lm_" + str(block_size)
+        )
+
+        if os.path.exists(cached_features_file) and not args.overwrite_cache:
+            logger.info("Loading features from cached file %s",
+                        cached_features_file)
+            with open(cached_features_file, "rb") as handle:
+                self.examples = pickle.load(handle)
+        else:
+            logger.info("Creating features from dataset file at %s", directory)
+
+            self.examples = []
+            for _, row in df.iterrows():
+                print(row)
+                conv = construct_conv(row, tokenizer)
+                self.examples.append(conv)
+
+            logger.info("Saving features into cached file %s",
+                        cached_features_file)
+            with open(cached_features_file, "wb") as handle:
+                pickle.dump(self.examples, handle,
+                            protocol=pickle.HIGHEST_PROTOCOL)
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, item):
+        return torch.tensor(self.examples[item], dtype=torch.long)
